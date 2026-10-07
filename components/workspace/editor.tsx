@@ -5,7 +5,7 @@ import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { fileMap, TASK } from "@/lib/sample-data";
 import { highlightCode } from "@/lib/highlight";
-import { activeFileLines } from "@/lib/review-logic";
+import { activeFileLines, currentRevision, ticketDoc } from "@/lib/review-logic";
 import { useReview } from "@/lib/review-store";
 import type { DiffLine } from "@/lib/types";
 
@@ -24,17 +24,16 @@ export function Editor() {
     panelOpen,
   } = useReview();
   const file = fileMap[activeFile];
-  const lines =
-    file && phase === "review"
-      ? activeFileLines(file, draft?.applied ?? [])
-      : [];
-  const revised =
-    file?.revisedWhen.some((id) => draft?.applied.includes(id)) ?? false;
+  const revisions = draft?.revisions ?? [];
+  const lines = file && phase === "review" ? activeFileLines(file, revisions) : [];
+  const variantRevision =
+    file?.variant && revisions.includes(file.variant.revision) ? file.variant.revision : null;
+  const fileRevision = variantRevision ?? (file?.status === "unchanged" ? null : TASK.baseRevision);
 
   useEffect(() => {
     if (!selectedId || phase !== "review") return;
     document.getElementById(`mark-${selectedId}`)?.scrollIntoView({ block: "center" });
-  }, [selectedId, activeFile, draft?.applied, showDiff, phase]);
+  }, [selectedId, activeFile, draft?.revisions, showDiff, phase]);
 
   return (
     <section
@@ -45,8 +44,8 @@ export function Editor() {
         {phase === "review" && file ? (
           <div className="flex h-9 items-center border-r border-[#2b2b2b] bg-[#1e1e1e] px-3 text-[13px] text-[#ffffff]">
             {file.path.split("/").at(-1)}
-            {revised ? (
-              <span className="ml-2 font-mono text-[11px] text-[#89d185]">c8e11aa</span>
+            {variantRevision ? (
+              <span className="ml-2 font-mono text-[11px] text-[#89d185]">{variantRevision}</span>
             ) : null}
           </div>
         ) : (
@@ -101,7 +100,7 @@ export function Editor() {
             saved={Boolean(saved)}
           />
         ) : file?.kind === "doc" ? (
-          <DocView source={file.doc ?? ""} />
+          <DocView source={ticketDoc(draft)} />
         ) : (
           <DiffView lines={lines} showDiff={showDiff} selectedId={selectedId} />
         )}
@@ -109,7 +108,7 @@ export function Editor() {
       {phase === "review" ? (
         <div className="border-t border-[#2b2b2b] px-3 py-1 font-mono text-[11px] text-[#8a8a8a]">
           {TASK.repo} / {activeFile}
-          {revised ? " · reviewing c8e11aa" : ` · ${TASK.codeRevision}`}
+          {fileRevision ? ` · ${fileRevision}` : ` · not changed · branch at ${currentRevision(revisions)}`}
         </div>
       ) : null}
     </section>
@@ -143,19 +142,19 @@ function ClosedEditor({
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col justify-center px-6">
       <p className="text-[11px] font-medium tracking-wide text-[#3794ff]">
-        {saved ? "SAVED REVIEW" : "NO REVIEW OPEN"}
+        {saved ? "SAVED REVIEW" : "AGENT WORK IS READY"}
       </p>
       <h2 className="mt-2 text-xl font-medium text-[#e8e8e8]">
-        {saved ? "Checkout retry copy is saved" : "Harbor finished checkout retry copy"}
+        {saved ? "Your archive-projects review is saved" : "Harbor finished: archive projects"}
       </h2>
       <p className="mt-2 text-[13px] leading-relaxed text-[#bdbdbd]">
         {saved
-          ? `Saved ${savedAt}. Resume to see each finding against the code and spec versions you recorded. Passing checks were not treated as approval.`
-          : "The branch agent/checkout-retry-copy is at a4c91e2. Spec checkout-retry 3.2 is the contract. Open the review when you are ready to connect each requirement to evidence."}
+          ? `Saved ${savedAt}. Resume to see what you confirmed, what you decided, and who you are waiting on.`
+          : `You asked: “${TASK.ask}” Harbor finished on ${TASK.branch} at ${TASK.baseRevision}. Open it to see what it did, what looks right, and what needs your judgment.`}
       </p>
       <div className="mt-4">
         <Button type="button" onClick={onOpen}>
-          {saved ? "Resume review" : "Open review"}
+          {saved ? "Resume review" : "Open the finished work"}
         </Button>
       </div>
     </div>
@@ -181,6 +180,14 @@ function DocView({ source }: { source: string }) {
           );
         }
         if (!row.trim()) return <div key={index} className="h-2" />;
+        if (row.startsWith("- ")) {
+          return (
+            <p key={index} className="flex gap-2 font-sans text-[13px] leading-relaxed text-[#d4d4d4]">
+              <span className="text-[#3794ff]">•</span>
+              {row.slice(2)}
+            </p>
+          );
+        }
         return (
           <p key={index} className="font-sans text-[13px] leading-relaxed text-[#d4d4d4]">
             {row}

@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SWEflow",
+  title: "SWEflow v2 · guided review",
   description:
-    "Review an agent's changes against the spec. Record support, resolve divergences, and resume the findings later.",
+    "Return to finished agent work. Confirm what looks right, judge what needs you, and keep concept notes beside the review.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

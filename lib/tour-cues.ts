@@ -1,22 +1,22 @@
-import type { SidebarView } from "@/lib/types";
-
-export const REVIEW_STORAGE_KEY = "sweflow.review.v1";
-export const TOUR_STORAGE_KEY = "sweflow.tour.v1";
+export const STORAGE_PREFIX = "sweflow.v2.";
+export const REVIEW_STORAGE_KEY = `${STORAGE_PREFIX}review`;
+export const TOUR_STORAGE_KEY = `${STORAGE_PREFIX}tour`;
 
 export type TourCue =
   | { kind: "welcome" }
-  | { kind: "task" }
+  | { kind: "overview" }
+  | { kind: "notes" }
   | { kind: "save" }
   | { kind: "reset" }
-  | { kind: "requirement"; id: string; view: SidebarView };
+  | { kind: "item"; id: string };
 
-/** Drops every SWEflow key so a reset cannot leave a saved review or a dismissed tour. */
+/** Drops only v2 keys, so a v2 reset never touches a v1 review saved in the same browser. */
 export function clearDemoStorage() {
   for (const store of [localStorage, sessionStorage]) {
     const keys: string[] = [];
     for (let index = 0; index < store.length; index += 1) {
       const key = store.key(index);
-      if (key?.startsWith("sweflow.")) keys.push(key);
+      if (key?.startsWith(STORAGE_PREFIX)) keys.push(key);
     }
     for (const key of keys) store.removeItem(key);
   }

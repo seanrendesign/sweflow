@@ -3,13 +3,14 @@
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { TASK } from "@/lib/sample-data";
+import { currentRevision, reviewSummary } from "@/lib/review-logic";
 import { useReview } from "@/lib/review-store";
 import { ActivityBar } from "@/components/workspace/activity-bar";
 import { BottomPanel } from "@/components/workspace/bottom-panel";
 import { ReviewDialogs } from "@/components/workspace/dialogs";
 import { Editor } from "@/components/workspace/editor";
 import { Explorer } from "@/components/workspace/explorer";
-import { SpecSidebar } from "@/components/workspace/spec-sidebar";
+import { GuidedPanel } from "@/components/workspace/guided-panel";
 import { useTour } from "@/components/workspace/tour";
 
 const panes = [
@@ -22,17 +23,19 @@ const panes = [
 export function Workspace() {
   const { mobilePane, setMobilePane, panelOpen, draft, phase, saved, openDialog } = useReview();
   const tour = useTour();
-  const revision =
-    phase === "review" && draft?.applied.includes("R2") ? "c8e11aa" : TASK.codeRevision;
+  const revision = phase === "review" ? currentRevision(draft?.revisions) : TASK.baseRevision;
   const status = demoStatus(phase, Boolean(saved), Boolean(draft?.dirty));
+  const summary = reviewSummary(draft);
 
   return (
     <div className="flex h-dvh flex-col bg-[#1e1e1e] text-[#cccccc]">
       <div data-tour-chrome className="shrink-0">
         <header className="flex h-9 items-center gap-3 bg-[#3c3c3c] px-3 text-[12px]">
           <span className="font-medium text-white">SWEflow</span>
+          <span className="rounded-sm bg-[#007acc] px-1.5 py-0.5 text-[11px] font-medium text-white">
+            v2 · guided review
+          </span>
           <span className="hidden text-[#cccccc] sm:inline">{TASK.repo}</span>
-          <span className="hidden text-[#9d9d9d] md:inline">Spec Review</span>
           <span className="ml-auto truncate font-mono text-[#cccccc]">
             {TASK.branch}
             {draft?.dirty ? "*" : ""}
@@ -44,13 +47,7 @@ export function Workspace() {
             <Button type="button" size="xs" variant="secondary" onClick={tour.start}>
               Walk through
             </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              data-tour="reset"
-              onClick={() => openDialog("restart")}
-            >
+            <Button type="button" size="xs" variant="outline" data-tour="reset" onClick={() => openDialog("restart")}>
               Reset demo
             </Button>
           </div>
@@ -77,13 +74,7 @@ export function Workspace() {
         <div className="hidden h-full lg:flex">
           <ActivityBar />
         </div>
-        <div
-          className={cn(
-            "min-h-0",
-            mobilePane === "files" ? "flex w-full" : "hidden",
-            "lg:flex lg:w-60",
-          )}
-        >
+        <div className={cn("min-h-0", mobilePane === "files" ? "flex w-full" : "hidden", "lg:flex lg:w-60")}>
           <Explorer />
         </div>
         <div
@@ -106,36 +97,30 @@ export function Workspace() {
             </div>
           ) : null}
         </div>
-        <div
-          className={cn(
-            "min-h-0",
-            mobilePane === "review" ? "flex w-full" : "hidden",
-            "lg:flex lg:w-[400px]",
-          )}
-        >
-          <SpecSidebar />
+        <div className={cn("min-h-0", mobilePane === "review" ? "flex w-full" : "hidden", "lg:flex lg:w-[420px]")}>
+          <GuidedPanel />
         </div>
       </div>
 
       <footer className="flex h-6 shrink-0 items-center gap-3 bg-[#007acc] px-2 text-[11px] text-white">
         <span className="truncate">{TASK.branch}</span>
         <span className="font-mono">{revision}</span>
-        <span>spec {TASK.specVersion}</span>
+        {phase === "review" ? (
+          <span>
+            {summary.settled}/{summary.total} settled
+          </span>
+        ) : null}
         <span>{status}</span>
-        <span className="ml-auto hidden sm:inline">Simulated session</span>
+        <span className="ml-auto hidden sm:inline">v2 · guided review · simulated session</span>
       </footer>
       <ReviewDialogs />
     </div>
   );
 }
 
-function demoStatus(
-  phase: "closed" | "loading" | "review",
-  saved: boolean,
-  dirty: boolean,
-) {
-  if (phase === "loading") return "Opening review";
-  if (phase === "closed") return saved ? "Review saved" : "No review yet";
+function demoStatus(phase: "closed" | "loading" | "review", saved: boolean, dirty: boolean) {
+  if (phase === "loading") return "Opening the finished work";
+  if (phase === "closed") return saved ? "Review saved" : "Agent work is ready";
   if (dirty) return "Unsaved review";
   if (saved) return "Review saved";
   return "Review open";

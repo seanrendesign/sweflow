@@ -46,7 +46,7 @@ export function BottomPanel() {
         <TabsContent value="agent" className="ide-scroll min-h-0 overflow-auto">
           {phase !== "review" ? (
             <p className="px-3 py-3 text-[13px] text-[#9d9d9d]">
-              Harbor&apos;s handoff appears when you open the review. Corrections stay in this composer.
+              Your ask and Harbor&apos;s handoff appear when you open the work. Corrections and research passes land here.
             </p>
           ) : (
             thread.map((message) => (
@@ -83,6 +83,7 @@ function TermLine({ line }: { line: string }) {
   else if (
     line.includes("inconclusive") ||
     line.includes("not written") ||
+    line.includes("Not covered") ||
     line.startsWith(" No ")
   ) {
     className = "text-[#e2c044]";

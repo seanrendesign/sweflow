@@ -8,8 +8,8 @@ import { useReview } from "@/lib/review-store";
 const items = [
   { id: "files", label: "Explorer", icon: Files },
   { id: "search", label: "Search is not part of this review", icon: Search, disabled: true },
-  { id: "review", label: "Spec Review", icon: ListChecks },
-  { id: "branch", label: "agent/checkout-retry-copy", icon: GitBranch, disabled: true },
+  { id: "review", label: "Guided review", icon: ListChecks },
+  { id: "branch", label: "agent/archive-projects", icon: GitBranch, disabled: true },
 ] as const;
 
 export function ActivityBar() {

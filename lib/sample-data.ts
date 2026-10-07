@@ -1,371 +1,263 @@
-import type {
-  AgentMessage,
-  FileDoc,
-  Requirement,
-  Revision,
-} from "@/lib/types";
+import type { AgentMessage, ConceptNote, FileDoc, ReviewItem } from "@/lib/types";
 
 export const TASK = {
-  id: "checkout-retry-copy",
-  title: "Checkout retry copy",
-  repo: "northwind-checkout",
-  branch: "agent/checkout-retry-copy",
+  title: "Archive projects instead of deleting them",
+  repo: "tasklane",
+  branch: "agent/archive-projects",
   agent: "Harbor",
-  finishedAt: "Oct 4, 9:40 AM",
-  codeRevision: "a4c91e2",
-  specId: "checkout-retry",
-  specVersion: "3.2",
-  priorReview: {
-    reviewer: "Maya Chen",
-    at: "Oct 1, 4:15 PM",
-    summary:
-      "R1 recorded as supported on 7b21d0a against spec 3.1. R2 through R5 were not in that review. The record does not cover a4c91e2 or spec 3.2.",
-  },
+  askedAt: "Oct 7, 9:12 AM",
+  finishedAt: "Oct 7, 10:04 AM",
+  baseRevision: "a3f9c10",
+  ask: "Can we let people archive a project instead of deleting it? Deleting is scary.",
+  ticket: "PLT-212",
+  finished: [
+    "Added Archive and Restore to project settings. Only admins see them.",
+    "Archived projects leave the sidebar.",
+    "Added an archived_at column and a table that logs each archive and restore.",
+    "Wrote 3 tests. All 3 pass on a3f9c10.",
+  ],
+  unsure: [
+    "I unassign open tasks when a project is archived, so My Tasks stays clean. You did not ask for that.",
+    "listProjects() now hides archived projects for every caller. I did not check the other callers.",
+  ],
 } as const;
 
-export const OWNERS = {
-  spec: { name: "Priya Shah", role: "PM" },
-  architecture: { name: "Jordan Lee", role: "code owner" },
-  behavior: { name: "Sam Okonkwo", role: "QA" },
-} as const;
-
-export const revisions: Revision[] = [
-  {
-    id: "a4c91e2",
-    author: "Harbor",
-    at: "Oct 4, 9:40 AM",
-    summary:
-      "Rewrote the retry banner and added a retry branch for suspected_fraud.",
-  },
-  {
-    id: "7b21d0a",
-    author: "Maya Chen",
-    at: "Oct 1, 4:15 PM",
-    summary: "Kept the card form mounted after a soft decline.",
-  },
-];
-
-export const revisedRevision: Revision = {
-  id: "c8e11aa",
-  author: "Harbor",
-  at: "After the R2 correction",
-  summary:
-    "Retry notice says the charge was not completed and names the next action.",
+export const TICKET_LINES = {
+  hide: "Archiving hides a project from the sidebar and from search.",
+  restoreV1: "Admins can restore an archived project as it was.",
+  restoreV2: "Admins can restore an archived project. Open tasks come back unassigned.",
 };
 
-export const specHistory = [
+export const REVISION_NOTES: Record<string, string> = {
+  a3f9c10: "Harbor · Archive and Restore, sidebar filter, migration, 3 tests",
+  b72e0f1: "Harbor · Search skips archived projects (your correction)",
+  d05a6b3: "Harbor · Archiving keeps task assignees (your decision)",
+};
+
+export const items: ReviewItem[] = [
   {
-    version: "3.2",
-    at: "Oct 3",
-    author: "Priya Shah",
-    note: "The notice must not claim success. Hard declines stay terminal. Announcement and focus are required.",
-  },
-  {
-    version: "3.1",
-    at: "Sep 28",
-    author: "Priya Shah",
-    note: "After a decline, the customer can correct the card without a reload.",
-  },
-];
-
-const passMount: Requirement["evidence"]["checks"][number] = {
-  id: "mount",
-  name: "form stays mounted after a soft decline",
-  result: "pass",
-  detail: "PAN and expiry remain after insufficient_funds. The form node is the same instance.",
-};
-
-const passClear: Requirement["evidence"]["checks"][number] = {
-  id: "clear",
-  name: "notice clears after the next charge succeeds",
-  result: "pass",
-  detail: "A second attempt routes to confirmation with no retry banner.",
-};
-
-const failCopy: Requirement["evidence"]["checks"][number] = {
-  id: "copy",
-  name: "retry notice does not claim the payment succeeded",
-  result: "fail",
-  detail:
-    'Banner text matched /successful/. Received "Payment successful — we\'ll retry shortly".',
-};
-
-const passCopy: Requirement["evidence"]["checks"][number] = {
-  id: "copy",
-  name: "retry notice does not claim the payment succeeded",
-  result: "pass",
-  detail:
-    'Banner is "Charge not completed". Detail names update-the-card or try-again.',
-};
-
-export const requirements: Requirement[] = [
-  {
-    id: "R1",
-    title: "Keep the card form editable after a decline",
-    flagged: false,
-    evidenceClass: "supports",
-    classRationale:
-      "CheckoutForm.tsx still skips a reload on a soft decline and keeps the values the customer typed. Harbor did not edit this path on a4c91e2.",
-    file: "checkout/CheckoutForm.tsx",
-    evidence: {
-      specVersion: "3.2",
-      specText:
-        "After a declined payment, the customer can correct the card without a full page reload. Field values the customer already entered remain.",
-      codeNote:
-        "onSubmit stores the declined charge and does not call router.refresh(). Unchanged since 7b21d0a.",
-      revisionIds: ["7b21d0a", "a4c91e2"],
-      checks: [passMount],
-      behavior:
-        "A decline on visa ••4242 leaves the PAN and expiry in the fields. Pay stays enabled on the same form.",
-    },
-    focusedCheck: {
-      name: "form stays mounted after a soft decline",
+    id: "sidebar",
+    pile: "confirm",
+    kind: "confirm",
+    title: "Archived projects leave the sidebar",
+    category: `Written requirement · ${TASK.ticket}`,
+    whyHere:
+      "The change is one filter, and a test checks it on this revision. The evidence matches the ticket.",
+    closesWith: "Confirm it. That records this item only, on this revision.",
+    file: "src/projects/listProjects.ts",
+    changed:
+      "listProjects() now skips projects that have an archived_at date. The sidebar gets its list from listProjects().",
+    check: {
+      name: "archived project leaves the sidebar",
       result: "pass",
-      output: [
-        "$ pnpm test checkout/retry-copy.test.ts -t \"form stays mounted\"",
-        "",
-        " ✓ form stays mounted after a soft decline                     11ms",
-        "   PAN and expiry still on the same form node.",
-        "",
-        " revision a4c91e2 · spec checkout-retry 3.2",
-        " Focused check passed. No other requirement was executed.",
-      ].join("\n"),
+      detail: "Archived “Q3 launch” and reloaded the sidebar. 4 projects show. “Q3 launch” is not one of them.",
     },
-    canResolveIndependently: true,
-    independentReason:
-      "The mount behavior is covered by an existing test on this revision.",
-    defaultDomain: "behavior",
-    openQuestion: "Does the form stay mounted after a soft decline on a4c91e2?",
-    evidenceNeeded: "The passing mount test and a behavior note for visa ••4242.",
+    written: {
+      source: TASK.ticket,
+      text: TICKET_LINES.hide,
+      scope: "This item covers the sidebar half. Search is a separate item under Needs your judgment.",
+    },
   },
   {
-    id: "R2",
-    title: "Retry notice must not claim the payment succeeded",
-    flagged: true,
-    evidenceClass: "confirmed_mismatch",
-    classRationale:
-      "Spec 3.2 says the charge was not completed and names the next action. The banner on a4c91e2 says the payment succeeded. The copy check fails.",
-    file: "checkout/RetryNotice.tsx",
-    evidence: {
-      specVersion: "3.2",
-      specText:
-        "The notice states that the charge was not completed and names the next action: update the card or try again. It must not say the payment succeeded.",
-      codeNote:
-        'title is "Payment successful — we\'ll retry shortly". Harbor replaced the failure copy on a4c91e2 and called it friendlier.',
-      revisionIds: ["a4c91e2"],
-      checks: [failCopy],
-      behavior:
-        "The banner reads as a success confirmation while charge.status is still declined. Nothing was captured.",
+    id: "restore",
+    pile: "confirm",
+    kind: "confirm",
+    title: "Restore puts the project back",
+    category: `Written requirement · ${TASK.ticket}`,
+    whyHere:
+      "Restore clears the archived date, and a test checks the project comes back with its tasks.",
+    closesWith: "Confirm it. That records this item only, on this revision.",
+    file: "src/projects/archive.ts",
+    changed:
+      "restoreProject() sets archived_at back to empty and logs a restore. Admins see a Restore button on archived projects.",
+    check: {
+      name: "restore puts the project back in the sidebar",
+      result: "pass",
+      detail: "“Q3 launch” is back in the sidebar with all 12 of its tasks.",
     },
-    revised: {
-      revision: "c8e11aa",
-      summary:
-        "Harbor replaced the success claim with copy that matches spec 3.2.",
-      specVersion: "3.2",
-      specText:
-        "The notice states that the charge was not completed and names the next action: update the card or try again. It must not say the payment succeeded.",
-      codeNote:
-        'title is "Charge not completed". detail is "Update the card or try again. Nothing was captured."',
-      behavior:
-        "The banner no longer reads as success. The charge state is still declined, and the next action is visible.",
-      checks: [passCopy],
-      affected: [
-        {
-          id: "R1",
-          note: "c8e11aa does not touch CheckoutForm.tsx. A support record on a4c91e2 still applies. It is not re-approved by this revision.",
-        },
-        {
-          id: "R5",
-          note: "Notice-clear behavior is unchanged. Do not treat the copy fix as support for R5.",
-        },
-        {
-          id: "R4",
-          note: "Still no announcement trace and no focus move. The copy fix does not meet R4.",
-        },
-        {
-          id: "R3",
-          note: "The suspected_fraud branch is untouched.",
-        },
-      ],
+    written: {
+      source: TASK.ticket,
+      text: TICKET_LINES.restoreV1,
+    },
+    related: {
+      id: "unassign",
+      note: "This only checks that the project comes back. Whether its tasks come back with their assignees is a separate call.",
+    },
+  },
+  {
+    id: "search",
+    pile: "judgment",
+    kind: "correct",
+    title: "Archived projects still show up in search",
+    category: "Written requirement the evidence contradicts",
+    whyHere:
+      "The ticket says archived projects leave search too. Harbor only filtered the sidebar, so searching “Q3” still finds the archived project.",
+    closesWith: "Send Harbor a correction, then recheck its fix with one focused check.",
+    file: "src/search/searchProjects.ts",
+    changed: "Nothing. searchProjects() was not touched, and it has its own query.",
+    check: {
+      name: "search skips archived projects",
+      result: "missing",
+      detail: "No test covers search. Harbor's 3 tests only look at the sidebar and restore.",
+    },
+    written: {
+      source: TASK.ticket,
+      text: TICKET_LINES.hide,
+      scope: "This item covers the search half.",
+    },
+    correct: {
+      expected: "Searching “Q3” finds no archived projects.",
+      actual: "“Q3 launch” is the first result, with no sign that it is archived.",
+      correctionDraft: [
+        "searchProjects() still returns archived projects.",
+        "PLT-212 says archiving hides a project from search too.",
+        "",
+        "Skip projects with an archived_at date in searchProjects(), and add a test for it.",
+        "Leave the sidebar and restore code as they are.",
+      ].join("\n"),
+      revision: "b72e0f1",
+      revisionSummary: "searchProjects() skips archived projects. New test: search skips archived projects.",
+      agentReply: [
+        "Fixed. searchProjects() now skips projects with an archived_at date, the same filter listProjects() uses.",
+        "",
+        "I added one test: search skips archived projects. I did not touch the sidebar or restore code. Pushed b72e0f1.",
+      ].join("\n"),
       focusedCheck: {
-        name: "retry notice does not claim the payment succeeded",
-        result: "pass",
+        name: "search skips archived projects",
         output: [
-          "$ pnpm test checkout/retry-copy.test.ts -t \"does not claim\"",
+          '$ pnpm test src/search/searchProjects.test.ts -t "skips archived"',
           "",
-          " ✓ retry notice does not claim the payment succeeded            8ms",
-          '   Banner: "Charge not completed"',
-          '   Detail: "Update the card or try again. Nothing was captured."',
+          " ✓ search skips archived projects                  10ms",
+          '   Query "Q3": 0 results. "Q3 launch" is archived.',
           "",
-          " revision c8e11aa · spec checkout-retry 3.2",
-          " Focused check passed. R1, R3, R4, and R5 were not executed and are not approved.",
+          " revision b72e0f1",
+          " Focused check passed. Only this item was rechecked.",
         ].join("\n"),
       },
+      fixedBehavior: "Searching “Q3” returns nothing while “Q3 launch” is archived.",
     },
-    focusedCheck: {
-      name: "retry notice does not claim the payment succeeded",
-      result: "fail",
-      output: [
-        "$ pnpm test checkout/retry-copy.test.ts -t \"does not claim\"",
-        "",
-        " × retry notice does not claim the payment succeeded           18ms",
-        "   AssertionError: banner text matched /successful/",
-        '   Received: "Payment successful — we\'ll retry shortly"',
-        "   Spec checkout-retry 3.2 forbids a success claim while the charge is declined.",
-        "",
-        " revision a4c91e2 · spec checkout-retry 3.2",
-        " Focused check failed. R2 is still unmet.",
-      ].join("\n"),
-    },
-    canResolveIndependently: true,
-    independentReason:
-      "The mismatch is a copy assertion. You can recheck it with the linked test after Harbor revises the notice.",
-    defaultDomain: "behavior",
-    openQuestion:
-      "Does the retry notice on the current revision avoid claiming the payment succeeded?",
-    evidenceNeeded:
-      "A passing run of the copy assertion against the revision under review.",
   },
   {
-    id: "R3",
-    title: "Offer retry only for soft declines",
-    flagged: true,
-    evidenceClass: "possible_intentional",
-    classRationale:
-      "Spec 3.2 keeps suspected_fraud terminal. a4c91e2 returns retry for that code, with a comment pointing at an Oct 2 chat. The chat is not an approval, and no test covers the branch.",
-    file: "checkout/useRetryPolicy.ts",
-    evidence: {
-      specVersion: "3.2",
-      specText:
-        "Offer retry only for issuer soft declines (insufficient_funds, card_velocity). Hard declines (suspected_fraud, stolen_card) show a terminal error and no retry.",
-      codeNote:
-        "retryDecision returns retry for suspected_fraud. The comment cites an Oct 2 chat and says the change is not in spec 3.2.",
-      revisionIds: ["a4c91e2"],
-      checks: [
-        {
-          id: "fraud",
-          name: "suspected_fraud stays terminal",
-          result: "missing",
-          detail: "No test in retry-copy.test.ts covers suspected_fraud or stolen_card.",
-        },
-      ],
-      behavior:
-        "A suspected_fraud response renders RetryNotice instead of the terminal error. stolen_card is still terminal.",
-    },
-    focusedCheck: {
-      name: "suspected_fraud stays terminal",
-      result: "inconclusive",
-      output: [
-        "$ pnpm test checkout/retry-copy.test.ts -t \"suspected_fraud\"",
-        "",
-        " No test covers suspected_fraud.",
-        " Behavior note: a suspected_fraud response renders RetryNotice, not the terminal error.",
-        " The Oct 2 chat comment is not an approval of a spec change.",
-        "",
-        " revision a4c91e2 · spec checkout-retry 3.2",
-        " Focused check inconclusive. R3 stays unresolved until authorization or a correction.",
-      ].join("\n"),
-    },
-    canResolveIndependently: false,
-    independentReason:
-      "Changing which declines can retry is a spec decision. Authorization has to come from the PM or designer. A local test cannot approve it.",
-    defaultDomain: "spec",
-    openQuestion:
-      "Is the suspected_fraud retry an authorized change to checkout-retry, or should Harbor restore the terminal error?",
-    evidenceNeeded:
-      "Either a named approver and the approved requirement version, or a correction that removes the fraud-hold retry.",
-  },
-  {
-    id: "R4",
-    title: "Announce the notice and move focus",
-    flagged: true,
-    evidenceClass: "insufficient",
-    classRationale:
-      "The notice uses aria-live=\"polite\" and never moves focus. No screen-reader trace and no focus assertion are attached to a4c91e2, so the requirement cannot be marked met.",
-    file: "checkout/RetryNotice.tsx",
-    evidence: {
-      specVersion: "3.2",
-      specText:
-        "When the notice appears, assistive tech announces it immediately, then focus moves to the first invalid field.",
-      codeNote:
-        "The banner is role=\"status\" with aria-live=\"polite\". There is no focus() call and no assertive live region.",
-      revisionIds: ["a4c91e2"],
-      checks: [
-        {
-          id: "a11y",
-          name: "notice is announced and focus moves to the first invalid field",
-          result: "missing",
-          detail: "The test file does not mention announcement or focus.",
-        },
-      ],
-      behavior: "No screen-reader trace was captured on a4c91e2.",
-    },
-    focusedCheck: {
-      name: "notice is announced and focus moves to the first invalid field",
-      result: "inconclusive",
-      output: [
-        "$ pnpm test checkout/retry-copy.test.ts -t \"announced\"",
-        "",
-        " No test named for announcement or focus.",
-        " No screen-reader trace is attached to a4c91e2.",
-        " aria-live=\"polite\" is present. focus() is not called.",
-        "",
-        " revision a4c91e2 · spec checkout-retry 3.2",
-        " Focused check inconclusive. Do not mark R4 met.",
-      ].join("\n"),
-    },
-    canResolveIndependently: false,
-    independentReason:
-      "A missing accessibility trace needs a behavior check from QA, or a new test that does not exist on this revision. You cannot confirm announcement from the source alone.",
-    defaultDomain: "behavior",
-    openQuestion:
-      "Does the retry notice get announced immediately, and does focus land on the first invalid field?",
-    evidenceNeeded:
-      "A screen-reader trace or a test that asserts an immediate announcement and a focus move to the first invalid field.",
-  },
-  {
-    id: "R5",
-    title: "Clear the notice after a successful retry",
-    flagged: false,
-    evidenceClass: "supports",
-    classRationale:
-      "A succeeded charge clears retry state before routing to confirmation. The linked test passes on a4c91e2.",
-    file: "checkout/CheckoutForm.tsx",
-    evidence: {
-      specVersion: "3.2",
-      specText:
-        "After the next attempt succeeds, remove the retry notice. Do not leave a failure banner on the confirmation step.",
-      codeNote:
-        "When charge.status is succeeded, onSubmit calls setRetry(null) and then router.push(\"/confirmation\").",
-      revisionIds: ["a4c91e2", "7b21d0a"],
-      checks: [passClear],
-      behavior:
-        "The second attempt on the same form lands on confirmation with no banner.",
-    },
-    focusedCheck: {
-      name: "notice clears after the next charge succeeds",
+    id: "unassign",
+    pile: "judgment",
+    kind: "product",
+    title: "Archiving unassigns open tasks",
+    category: "Behavior change you did not ask for",
+    whyHere:
+      "Harbor made a product choice on its own: archiving now removes the assignee from every open task. You did not ask for it, and it changes what “restore as it was” means.",
+    closesWith:
+      "Accept the new behavior, or keep the old one and Harbor reverts it. Either way your decision is recorded.",
+    file: "src/projects/archive.ts",
+    changed: "archiveProject() sets assignee to empty on every open task in the project.",
+    check: {
+      name: "archiving unassigns open tasks",
       result: "pass",
-      output: [
-        "$ pnpm test checkout/retry-copy.test.ts -t \"notice clears\"",
+      detail: "Harbor's own test. It proves the code does what Harbor chose, not that the choice is right.",
+    },
+    product: {
+      example: "Example: “Q3 launch” has 7 open tasks spread across 3 people.",
+      before: {
+        label: `${TASK.ticket} v1 · before this change`,
+        behavior:
+          "Archiving leaves tasks alone. The 7 open tasks keep their assignees. Restore brings the project back exactly as it was.",
+        spec: TICKET_LINES.restoreV1,
+      },
+      after: {
+        label: `${TASK.ticket} v2 · Harbor's proposal`,
+        behavior:
+          "Archiving removes the assignee from all 7 open tasks, so they leave each person's My Tasks. Restore brings them back with no assignee.",
+        spec: TICKET_LINES.restoreV2,
+      },
+      testNote:
+        "A passing test cannot approve this. Harbor's test checks that tasks get unassigned, not whether they should.",
+      rejectCorrection: [
+        "Keep task assignees when a project is archived.",
+        "Remove the unassign step from archiveProject() and its test.",
+        "Restore should bring tasks back as they were, per PLT-212.",
+      ].join("\n"),
+      revision: "d05a6b3",
+      agentReply: [
+        "Reverted. archiveProject() no longer touches tasks, and I removed the unassign test.",
         "",
-        " ✓ notice clears after the next charge succeeds                 9ms",
-        "   Confirmation renders with no retry banner.",
-        "",
-        " revision a4c91e2 · spec checkout-retry 3.2",
-        " Focused check passed. No other requirement was executed.",
+        "Restore now brings tasks back with their assignees. Pushed d05a6b3. Nothing else changed.",
       ].join("\n"),
     },
-    canResolveIndependently: true,
-    independentReason: "The clear-on-success path has a passing test on a4c91e2.",
-    defaultDomain: "behavior",
-    openQuestion: "Does the retry notice disappear after the next charge succeeds?",
-    evidenceNeeded: "The passing clear test on a4c91e2.",
+  },
+  {
+    id: "callers",
+    pile: "judgment",
+    kind: "evidence",
+    title: "Every caller of listProjects() now skips archived projects",
+    category: "Possible break for code that calls this",
+    whyHere:
+      "Harbor changed a shared function. Other parts of the app call listProjects(), and nothing shows whether they expect archived projects. There is not enough evidence to judge.",
+    closesWith:
+      "Ask Harbor what the rest of the codebase does. If that leaves a question about how the product should behave, you can ask a person. Or keep it open on purpose.",
+    file: "src/projects/listProjects.ts",
+    changed: "listProjects() filters out archived projects for every caller. Before, it returned every project.",
+    check: {
+      name: "other callers of listProjects()",
+      result: "missing",
+      detail: "No test calls listProjects() from anywhere but the sidebar.",
+    },
+    evidence: {
+      codeQuestion: "Who else calls listProjects(), and what do they expect?",
+      research: {
+        reply: [
+          "Research pass on listProjects(). I searched the repo for every caller.",
+          "",
+          "1. Sidebar: wants archived projects hidden. Fine.",
+          "2. Weekly digest email (jobs/weeklyDigest.ts): now skips archived projects. Reads as intended.",
+          "3. Plan limits (billing/planLimits.ts): counts projects against the Free plan's 10-project limit. Archived projects no longer count, so a Free team could archive projects to make room.",
+          "",
+          "I did not change anything. Number 3 is a product question, not a code one.",
+        ].join("\n"),
+        summary: "Two callers are fine. One raises a product question about billing.",
+        findings: [
+          { where: "Sidebar", note: "Wants archived projects hidden. Fine.", concern: false },
+          {
+            where: "Weekly digest email",
+            note: "Now skips archived projects. Reads as intended.",
+            concern: false,
+          },
+          {
+            where: "Plan limits",
+            file: "src/billing/planLimits.ts",
+            note: "Counts projects toward the Free plan's 10-project limit. Archived projects stop counting, so a Free team could archive to make room.",
+            concern: true,
+          },
+        ],
+      },
+      personQuestionBefore: "Should an archived project still count anywhere, like plan limits or reports?",
+      personQuestionAfter: "Should archived projects count toward the Free plan's 10-project limit?",
+      suggestedWho: ["Whoever owns plans and billing", "Product lead"],
+      evidenceNeeded:
+        "Which callers expect archived projects, and whether archived projects count toward plan limits.",
+    },
   },
 ];
 
-export const requirementMap = Object.fromEntries(
-  requirements.map((requirement) => [requirement.id, requirement]),
-) as Record<string, Requirement>;
+export const itemMap = Object.fromEntries(items.map((item) => [item.id, item])) as Record<
+  string,
+  ReviewItem
+>;
+
+export const conceptNotes: ConceptNote[] = [
+  {
+    id: "note-archived",
+    kind: "New concept",
+    title: "A project can be archived",
+    body: "Projects are now active or archived. Archived means hidden and restorable. Delete still exists and is still permanent. Stored as projects.archived_at; empty means active.",
+    file: "db/migrations/0042_project_archive.sql",
+  },
+  {
+    id: "note-table",
+    kind: "New table",
+    title: "project_archive_events",
+    body: "One row each time someone archives or restores a project: which project, who, which action, and when. Nothing reads it yet.",
+    file: "db/migrations/0042_project_archive.sql",
+  },
+];
 
 function line(
   kind: FileDoc["lines"][number]["kind"],
@@ -376,193 +268,234 @@ function line(
   return { kind, text, newNo, marks };
 }
 
+const archiveHead = [
+  line("ctx", 'import { db } from "../db";', 1),
+  line("ctx", 'import { logArchiveEvent } from "./archiveEvents";', 2),
+  line("ctx", "", 3),
+  line("add", "export async function archiveProject(projectId: string, actorId: string) {", 4, ["note-archived"]),
+  line("add", "  await db", 5, ["note-archived"]),
+  line("add", '    .updateTable("projects")', 6, ["note-archived"]),
+  line("add", "    .set({ archived_at: new Date() })", 7, ["note-archived"]),
+  line("add", '    .where("id", "=", projectId)', 8),
+  line("add", "    .execute();", 9),
+];
+
+const archiveTail = (start: number) => [
+  line("add", '  await logArchiveEvent(projectId, actorId, "archive");', start, ["note-table"]),
+  line("add", "}", start + 1),
+  line("add", "", start + 2),
+  line("add", "export async function restoreProject(projectId: string, actorId: string) {", start + 3, ["restore"]),
+  line("add", "  await db", start + 4, ["restore"]),
+  line("add", '    .updateTable("projects")', start + 5, ["restore"]),
+  line("add", "    .set({ archived_at: null })", start + 6, ["restore"]),
+  line("add", '    .where("id", "=", projectId)', start + 7, ["restore"]),
+  line("add", "    .execute();", start + 8),
+  line("add", '  await logArchiveEvent(projectId, actorId, "restore");', start + 9, ["restore"]),
+  line("add", "}", start + 10),
+];
+
+const unassign = [
+  "  // Keep My Tasks clean: archived work should not sit on anyone.",
+  "  await db",
+  '    .updateTable("tasks")',
+  "    .set({ assignee_id: null })",
+  '    .where("project_id", "=", projectId)',
+  '    .where("done", "=", false)',
+  "    .execute();",
+];
+
 export const files: FileDoc[] = [
   {
-    path: "checkout/RetryNotice.tsx",
-    language: "TypeScript JSX",
-    kind: "diff",
-    revisedWhen: ["R2"],
-    lines: [
-      line("hunk", "@@ a4c91e2 checkout/RetryNotice.tsx @@"),
-      line("ctx", 'import type { Charge } from "./types";', 1),
-      line("ctx", "", 2),
-      line("ctx", "type Props = {", 3),
-      line("ctx", "  charge: Charge | null;", 4),
-      line("ctx", "  onEdit: () => void;", 5),
-      line("ctx", "};", 6),
-      line("ctx", "", 7),
-      line("ctx", "export function RetryNotice({ charge, onEdit }: Props) {", 8),
-      line("ctx", '  if (!charge || charge.status === "succeeded") return null;', 9),
-      line("ctx", "", 10),
-      line("del", '  const title = "Payment failed";'),
-      line("del", '  const detail = "Update the card or try again. Nothing was captured.";'),
-      line("add", '  const title = "Payment successful — we\'ll retry shortly";', 11, ["R2"]),
-      line("add", '  const detail = "Your card was saved for the next attempt.";', 12, ["R2"]),
-      line("ctx", "", 13),
-      line("ctx", "  return (", 14),
-      line("ctx", '    <div role="status" aria-live="polite" className="retry-banner">', 15, ["R4"]),
-      line("ctx", "      <h2>{title}</h2>", 16, ["R4"]),
-      line("ctx", "      <p>{detail}</p>", 17, ["R4"]),
-      line("ctx", '      <button type="button" onClick={onEdit}>', 18),
-      line("ctx", "        Edit card", 19),
-      line("ctx", "      </button>", 20),
-      line("ctx", "    </div>", 21),
-      line("ctx", "  );", 22),
-      line("ctx", "}", 23),
-    ],
-    revisedLines: [
-      line("hunk", "@@ c8e11aa checkout/RetryNotice.tsx (recheck against a4c91e2) @@"),
-      line("ctx", 'import type { Charge } from "./types";', 1),
-      line("ctx", "", 2),
-      line("ctx", "type Props = {", 3),
-      line("ctx", "  charge: Charge | null;", 4),
-      line("ctx", "  onEdit: () => void;", 5),
-      line("ctx", "};", 6),
-      line("ctx", "", 7),
-      line("ctx", "export function RetryNotice({ charge, onEdit }: Props) {", 8),
-      line("ctx", '  if (!charge || charge.status === "succeeded") return null;', 9),
-      line("ctx", "", 10),
-      line("del", '  const title = "Payment successful — we\'ll retry shortly";'),
-      line("del", '  const detail = "Your card was saved for the next attempt.";'),
-      line("add", '  const title = "Charge not completed";', 11, ["R2"]),
-      line("add", '  const detail = "Update the card or try again. Nothing was captured.";', 12, ["R2"]),
-      line("ctx", "", 13),
-      line("ctx", "  return (", 14),
-      line("ctx", '    <div role="status" aria-live="polite" className="retry-banner">', 15, ["R4"]),
-      line("ctx", "      <h2>{title}</h2>", 16, ["R4"]),
-      line("ctx", "      <p>{detail}</p>", 17, ["R4"]),
-      line("ctx", '      <button type="button" onClick={onEdit}>', 18),
-      line("ctx", "        Edit card", 19),
-      line("ctx", "      </button>", 20),
-      line("ctx", "    </div>", 21),
-      line("ctx", "  );", 22),
-      line("ctx", "}", 23),
-    ],
-  },
-  {
-    path: "checkout/useRetryPolicy.ts",
+    path: "src/projects/archive.ts",
     language: "TypeScript",
     kind: "diff",
-    revisedWhen: [],
+    status: "added",
     lines: [
-      line("hunk", "@@ a4c91e2 checkout/useRetryPolicy.ts @@"),
-      line("ctx", 'const SOFT_DECLINES = new Set(["insufficient_funds", "card_velocity"]);', 1),
-      line("ctx", "", 2),
-      line("ctx", 'export function retryDecision(code: string): "retry" | "terminal" {', 3),
-      line("add", '  if (code === "suspected_fraud") {', 4, ["R3"]),
-      line("add", "    // Oct 2 chat: product asked to retry fraud holds — not in spec 3.2", 5, ["R3"]),
-      line("add", '    return "retry";', 6, ["R3"]),
-      line("add", "  }", 7, ["R3"]),
-      line("ctx", '  if (SOFT_DECLINES.has(code)) return "retry";', 8),
-      line("ctx", '  return "terminal";', 9),
-      line("ctx", "}", 10),
+      line("hunk", "@@ a3f9c10 src/projects/archive.ts (new file) @@"),
+      ...archiveHead,
+      ...unassign.map((text, index) => line("add", text, 10 + index, ["unassign"])),
+      ...archiveTail(17),
     ],
+    variant: {
+      revision: "d05a6b3",
+      lines: [
+        line("hunk", "@@ d05a6b3 src/projects/archive.ts (your decision: keep assignees) @@"),
+        ...archiveHead,
+        ...unassign.map((text) => line("del", text, undefined, ["unassign"])),
+        ...archiveTail(10),
+      ],
+    },
   },
   {
-    path: "checkout/CheckoutForm.tsx",
-    language: "TypeScript JSX",
-    kind: "diff",
-    revisedWhen: [],
-    lines: [
-      line("hunk", "@@ unchanged on a4c91e2 · behavior from 7b21d0a @@"),
-      line("ctx", '"use client";', 1),
-      line("ctx", "", 2),
-      line("ctx", 'import { useState } from "react";', 3),
-      line("ctx", 'import { useRouter } from "next/navigation";', 4),
-      line("ctx", 'import { CardFields } from "./CardFields";', 5),
-      line("ctx", 'import { RetryNotice } from "./RetryNotice";', 6),
-      line("ctx", 'import { initialCard, submitCharge, type Charge } from "./charge";', 7),
-      line("ctx", "", 8),
-      line("ctx", "export function CheckoutForm() {", 9),
-      line("ctx", "  const router = useRouter();", 10),
-      line("ctx", "  const [card, setCard] = useState(initialCard);", 11),
-      line("ctx", "  const [retry, setRetry] = useState<Charge | null>(null);", 12),
-      line("ctx", "", 13),
-      line("ctx", "  async function onSubmit() {", 14),
-      line("ctx", "    const charge = await submitCharge(card);", 15),
-      line("ctx", '    if (charge.status === "succeeded") {', 16, ["R5"]),
-      line("ctx", "      setRetry(null);", 17, ["R5"]),
-      line("ctx", '      router.push("/confirmation");', 18, ["R5"]),
-      line("ctx", "      return;", 19),
-      line("ctx", "    }", 20),
-      line("ctx", "    // Keep the form mounted. Do not router.refresh().", 21, ["R1"]),
-      line("ctx", "    setRetry(charge);", 22, ["R1"]),
-      line("ctx", "  }", 23),
-      line("ctx", "", 24),
-      line("ctx", "  return (", 25),
-      line("ctx", "    <form onSubmit={onSubmit}>", 26),
-      line("ctx", "      <CardFields value={card} onChange={setCard} />", 27),
-      line("ctx", "      <RetryNotice charge={retry} onEdit={() => setRetry(null)} />", 28),
-      line("ctx", '      <button type="submit">Pay</button>', 29),
-      line("ctx", "    </form>", 30),
-      line("ctx", "  );", 31),
-      line("ctx", "}", 32),
-    ],
-  },
-  {
-    path: "checkout/retry-copy.test.ts",
+    path: "src/projects/listProjects.ts",
     language: "TypeScript",
     kind: "diff",
-    revisedWhen: [],
+    status: "modified",
     lines: [
-      line("hunk", "@@ checkout/retry-copy.test.ts · results from a4c91e2 @@"),
-      line("ctx", 'import { render } from "@testing-library/react";', 1),
-      line("ctx", 'import { CheckoutForm } from "./CheckoutForm";', 2),
-      line("ctx", 'import { decline, succeed } from "./test-charge";', 3),
+      line("hunk", "@@ a3f9c10 src/projects/listProjects.ts @@"),
+      line("ctx", 'import { db } from "../db";', 1),
+      line("ctx", "", 2),
+      line("ctx", "export async function listProjects(teamId: string) {", 3, ["callers"]),
+      line("ctx", "  return db", 4),
+      line("ctx", '    .selectFrom("projects")', 5),
+      line("ctx", '    .where("team_id", "=", teamId)', 6),
+      line("add", '    .where("archived_at", "is", null)', 7, ["sidebar", "callers"]),
+      line("ctx", '    .orderBy("name")', 8),
+      line("ctx", "    .selectAll()", 9),
+      line("ctx", "    .execute();", 10),
+      line("ctx", "}", 11),
+    ],
+  },
+  {
+    path: "src/search/searchProjects.ts",
+    language: "TypeScript",
+    kind: "diff",
+    status: "unchanged",
+    lines: [
+      line("hunk", "@@ not changed on a3f9c10 · src/search/searchProjects.ts @@"),
+      line("ctx", 'import { db } from "../db";', 1),
+      line("ctx", "", 2),
+      line("ctx", "export async function searchProjects(teamId: string, query: string) {", 3, ["search"]),
+      line("ctx", "  return db", 4),
+      line("ctx", '    .selectFrom("projects")', 5),
+      line("ctx", '    .where("team_id", "=", teamId)', 6, ["search"]),
+      line("ctx", '    .where("name", "ilike", `%${query}%`)', 7, ["search"]),
+      line("ctx", "    .limit(20)", 8),
+      line("ctx", "    .selectAll()", 9),
+      line("ctx", "    .execute();", 10),
+      line("ctx", "}", 11),
+    ],
+    variant: {
+      revision: "b72e0f1",
+      lines: [
+        line("hunk", "@@ b72e0f1 src/search/searchProjects.ts (your correction) @@"),
+        line("ctx", 'import { db } from "../db";', 1),
+        line("ctx", "", 2),
+        line("ctx", "export async function searchProjects(teamId: string, query: string) {", 3),
+        line("ctx", "  return db", 4),
+        line("ctx", '    .selectFrom("projects")', 5),
+        line("ctx", '    .where("team_id", "=", teamId)', 6),
+        line("add", '    .where("archived_at", "is", null)', 7, ["search"]),
+        line("ctx", '    .where("name", "ilike", `%${query}%`)', 8),
+        line("ctx", "    .limit(20)", 9),
+        line("ctx", "    .selectAll()", 10),
+        line("ctx", "    .execute();", 11),
+        line("ctx", "}", 12),
+      ],
+    },
+  },
+  {
+    path: "src/components/ProjectSettings.tsx",
+    language: "TypeScript JSX",
+    kind: "diff",
+    status: "modified",
+    lines: [
+      line("hunk", "@@ a3f9c10 src/components/ProjectSettings.tsx @@"),
+      line("ctx", "export function DangerZone({ project, canAdmin }: Props) {", 41),
+      line("ctx", "  if (!canAdmin) return null;", 42),
+      line("ctx", "  return (", 43),
+      line("ctx", '    <section className="danger-zone">', 44),
+      line("add", "      {project.archived_at ? (", 45, ["restore"]),
+      line("add", "        <Button onClick={() => restore(project.id)}>Restore project</Button>", 46, ["restore"]),
+      line("add", "      ) : (", 47),
+      line("add", "        <Button onClick={() => archive(project.id)}>Archive project</Button>", 48, ["note-archived"]),
+      line("add", "      )}", 49),
+      line("ctx", '      <Button variant="destructive" onClick={() => remove(project.id)}>', 50),
+      line("ctx", "        Delete project", 51),
+      line("ctx", "      </Button>", 52),
+      line("ctx", "    </section>", 53),
+      line("ctx", "  );", 54),
+      line("ctx", "}", 55),
+    ],
+  },
+  {
+    path: "src/projects/archive.test.ts",
+    language: "TypeScript",
+    kind: "diff",
+    status: "added",
+    lines: [
+      line("hunk", "@@ a3f9c10 src/projects/archive.test.ts (new file) @@"),
+      line("add", 'it("archived project leaves the sidebar", async () => {', 1, ["sidebar"]),
+      line("add", '  await archiveProject(q3.id, admin.id);', 2, ["sidebar"]),
+      line("add", '  expect(await sidebarNames(team)).not.toContain("Q3 launch");', 3, ["sidebar"]),
+      line("add", "});", 4),
+      line("add", "", 5),
+      line("add", 'it("restore puts the project back in the sidebar", async () => {', 6, ["restore"]),
+      line("add", '  await archiveProject(q3.id, admin.id);', 7, ["restore"]),
+      line("add", '  await restoreProject(q3.id, admin.id);', 8, ["restore"]),
+      line("add", '  expect(await sidebarNames(team)).toContain("Q3 launch");', 9, ["restore"]),
+      line("add", "});", 10),
+      line("add", "", 11),
+      line("add", 'it("archiving unassigns open tasks", async () => {', 12, ["unassign"]),
+      line("add", '  await archiveProject(q3.id, admin.id);', 13, ["unassign"]),
+      line("add", "  expect(await openTasks(q3.id)).toSatisfyAll((t) => t.assignee_id === null);", 14, ["unassign"]),
+      line("add", "});", 15),
+    ],
+    variant: {
+      revision: "d05a6b3",
+      lines: [
+        line("hunk", "@@ d05a6b3 src/projects/archive.test.ts (your decision: keep assignees) @@"),
+        line("add", 'it("archived project leaves the sidebar", async () => {', 1, ["sidebar"]),
+        line("add", '  await archiveProject(q3.id, admin.id);', 2, ["sidebar"]),
+        line("add", '  expect(await sidebarNames(team)).not.toContain("Q3 launch");', 3, ["sidebar"]),
+        line("add", "});", 4),
+        line("add", "", 5),
+        line("add", 'it("restore puts the project back in the sidebar", async () => {', 6, ["restore"]),
+        line("add", '  await archiveProject(q3.id, admin.id);', 7, ["restore"]),
+        line("add", '  await restoreProject(q3.id, admin.id);', 8, ["restore"]),
+        line("add", '  expect(await sidebarNames(team)).toContain("Q3 launch");', 9, ["restore"]),
+        line("add", "});", 10),
+        line("del", "", undefined),
+        line("del", 'it("archiving unassigns open tasks", async () => {', undefined, ["unassign"]),
+        line("del", '  await archiveProject(q3.id, admin.id);', undefined, ["unassign"]),
+        line("del", "  expect(await openTasks(q3.id)).toSatisfyAll((t) => t.assignee_id === null);", undefined, ["unassign"]),
+        line("del", "});", undefined),
+      ],
+    },
+  },
+  {
+    path: "db/migrations/0042_project_archive.sql",
+    language: "SQL",
+    kind: "diff",
+    status: "added",
+    lines: [
+      line("hunk", "@@ a3f9c10 db/migrations/0042_project_archive.sql (new file) @@"),
+      line("add", "ALTER TABLE projects ADD COLUMN archived_at timestamptz;", 1, ["note-archived"]),
+      line("add", "", 2),
+      line("add", "CREATE TABLE project_archive_events (", 3, ["note-table"]),
+      line("add", "  id bigserial PRIMARY KEY,", 4, ["note-table"]),
+      line("add", "  project_id bigint NOT NULL REFERENCES projects(id),", 5, ["note-table"]),
+      line("add", "  actor_id bigint NOT NULL REFERENCES users(id),", 6, ["note-table"]),
+      line("add", "  action text NOT NULL CHECK (action IN ('archive', 'restore')),", 7, ["note-table"]),
+      line("add", "  at timestamptz NOT NULL DEFAULT now()", 8, ["note-table"]),
+      line("add", ");", 9),
+    ],
+  },
+  {
+    path: "src/billing/planLimits.ts",
+    language: "TypeScript",
+    kind: "diff",
+    status: "unchanged",
+    revealedBy: "callers",
+    lines: [
+      line("hunk", "@@ not changed · found by Harbor's research pass @@"),
+      line("ctx", 'import { listProjects } from "../projects/listProjects";', 1, ["callers"]),
+      line("ctx", "", 2),
+      line("ctx", "const FREE_PROJECT_LIMIT = 10;", 3, ["callers"]),
       line("ctx", "", 4),
-      line("ctx", 'it("form stays mounted after a soft decline", async () => {', 5, ["R1"]),
-      line("ctx", "  const form = render(<CheckoutForm />);", 6),
-      line("ctx", '  await decline(form, "insufficient_funds");', 7),
-      line("ctx", '  expect(form.getByLabelText("Card number")).toHaveValue("4242");', 8),
-      line("ctx", "});", 9),
-      line("ctx", "", 10),
-      line("ctx", 'it("notice clears after the next charge succeeds", async () => {', 11, ["R5"]),
-      line("ctx", "  const form = render(<CheckoutForm />);", 12),
-      line("ctx", '  await decline(form, "insufficient_funds");', 13),
-      line("ctx", "  await succeed(form);", 14),
-      line("ctx", '  expect(form.queryByRole("status")).toBeNull();', 15),
-      line("ctx", "});", 16),
-      line("ctx", "", 17),
-      line("ctx", 'it("retry notice does not claim the payment succeeded", async () => {', 18, ["R2"]),
-      line("ctx", "  const form = render(<CheckoutForm />);", 19),
-      line("ctx", '  await decline(form, "insufficient_funds");', 20),
-      line("ctx", "  const banner = form.getByRole(\"status\");", 21),
-      line("ctx", "  expect(banner).not.toHaveTextContent(/successful/i);", 22),
-      line("ctx", "  expect(banner).toHaveTextContent(/try again/i);", 23),
-      line("ctx", "});", 24),
+      line("ctx", "export async function canCreateProject(team: Team) {", 5),
+      line("ctx", '  if (team.plan !== "free") return true;', 6),
+      line("ctx", "  const projects = await listProjects(team.id);", 7, ["callers"]),
+      line("ctx", "  return projects.length < FREE_PROJECT_LIMIT;", 8, ["callers"]),
+      line("ctx", "}", 9),
     ],
   },
   {
-    path: "spec/checkout-retry.md",
+    path: "tickets/PLT-212.md",
     language: "Markdown",
     kind: "doc",
-    revisedWhen: [],
+    status: "unchanged",
     lines: [],
-    doc: `# Checkout retry
-
-Version 3.2 · Priya Shah · Oct 3, 2026
-Supersedes 3.1. Applies to the card form in northwind-checkout.
-
-## R1 · Form stays editable
-
-After a declined payment, the customer can correct the card without a full page reload. Field values the customer already entered remain.
-
-## R2 · Notice does not claim success
-
-The notice states that the charge was not completed and names the next action: update the card or try again. It must not say the payment succeeded.
-
-## R3 · Retry only for soft declines
-
-Offer retry only for issuer soft declines (\`insufficient_funds\`, \`card_velocity\`). Hard declines (\`suspected_fraud\`, \`stolen_card\`) show a terminal error and no retry.
-
-## R4 · Announce, then move focus
-
-When the notice appears, assistive tech announces it immediately, then focus moves to the first invalid field.
-
-## R5 · Clear the notice after success
-
-After the next attempt succeeds, remove the retry notice. Do not leave a failure banner on the confirmation step.
-`,
   },
 ];
 
@@ -572,79 +505,38 @@ export const fileMap = Object.fromEntries(files.map((file) => [file.path, file])
 >;
 
 export const baseTerminal = [
-  "harbor@checkout agent/checkout-retry-copy",
-  "$ pnpm test checkout/retry-copy.test.ts",
+  "harbor@tasklane agent/archive-projects",
+  "$ pnpm test src/projects/archive.test.ts",
   "",
-  " RUN  checkout/retry-copy.test.ts",
+  " RUN  src/projects/archive.test.ts",
   "",
-  " ✓ form stays mounted after a soft decline                     12ms",
-  " ✓ notice clears after the next charge succeeds                 9ms",
-  " × retry notice does not claim the payment succeeded           18ms",
-  "   AssertionError: banner text matched /successful/",
-  '   Received: "Payment successful — we\'ll retry shortly"',
-  "   Spec checkout-retry 3.2 forbids a success claim while the charge is declined.",
+  " ✓ archived project leaves the sidebar             14ms",
+  " ✓ restore puts the project back in the sidebar    11ms",
+  " ✓ archiving unassigns open tasks                   9ms",
   "",
-  " Test files  1 failed",
-  " Tests  1 failed | 2 passed | 2 not written",
-  "   not written  suspected_fraud stays terminal",
-  "   not written  notice is announced and focus moves to the first invalid field",
+  " Tests  3 passed",
+  " Not covered  search · other callers of listProjects()",
   "",
-  " revision a4c91e2 · spec checkout-retry 3.2",
+  " revision a3f9c10",
 ].join("\n");
 
 export const initialAgentThread: AgentMessage[] = [
   {
+    id: "you-ask",
+    role: "you",
+    at: "9:12 AM",
+    text: TASK.ask,
+  },
+  {
     id: "harbor-done",
     role: "agent",
-    at: "9:40 AM",
+    at: "10:04 AM",
     text: [
-      "Finished checkout retry copy on agent/checkout-retry-copy at a4c91e2.",
+      "Done on agent/archive-projects at a3f9c10.",
       "",
-      "I rewrote the retry banner and allowed a retry when the issuer returns suspected_fraud. The form-mount path from 7b21d0a is unchanged.",
+      "Admins can archive and restore a project from settings. Archived projects leave the sidebar. I added an archived_at column, an archive log table, and 3 tests.",
       "",
-      "The spec on this branch is still checkout-retry 3.2. I did not edit it.",
+      "Two things I'm unsure about: I unassign open tasks on archive, which you didn't ask for. And listProjects() now hides archived projects for every caller; I didn't check the others.",
     ].join("\n"),
   },
 ];
-
-export function harborReply(requirementId: string): string {
-  if (requirementId === "R2") {
-    return [
-      "Got the correction for R2.",
-      "",
-      "I changed RetryNotice so the banner says the charge was not completed, and the detail tells the customer to update the card or try again. Nothing in the copy says the payment succeeded.",
-      "",
-      "I left the form-mount and notice-clear checks alone. Pushed c8e11aa for you to recheck. I did not mark any other requirement supported.",
-    ].join("\n");
-  }
-  return [
-    `Got the correction for ${requirementId}.`,
-    "",
-    "I have not pushed a revision. Point me at an approved spec version, or confirm I should restore the previous behavior.",
-  ].join("\n");
-}
-
-export function correctionDraft(requirement: Requirement): string {
-  const preserve = requirement.evidence.checks
-    .filter((check) => check.result === "pass")
-    .map((check) => `- ${check.name}`);
-  const keep =
-    preserve.length > 0
-      ? preserve.join("\n")
-      : "- Do not regress the form-mount or notice-clear checks.";
-  return [
-    `Correction for ${requirement.id} on ${TASK.codeRevision}`,
-    "",
-    requirement.title,
-    "",
-    `Spec ${TASK.specId} ${requirement.evidence.specVersion}:`,
-    requirement.evidence.specText,
-    "",
-    requirement.classRationale,
-    "",
-    "Keep these checks passing:",
-    keep,
-    "",
-    "Do not mark any other requirement supported.",
-  ].join("\n");
-}

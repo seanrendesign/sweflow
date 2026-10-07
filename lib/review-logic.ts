@@ -1,150 +1,97 @@
-import {
-  requirementMap,
-  requirements,
-  TASK,
-} from "@/lib/sample-data";
-import type { Decision, DiffLine, Disposition, Draft, Requirement } from "@/lib/types";
+import { conceptNotes, items, TASK, TICKET_LINES } from "@/lib/sample-data";
+import type { DiffLine, Draft, FileDoc, ItemState, ReviewItem, Tone } from "@/lib/types";
 
-export const emptyDecision: Decision = { disposition: "unreviewed" };
+const empty: ItemState = {};
 
-export function decisionFor(
-  draft: Draft | null | undefined,
-  id: string,
-): Decision {
-  return draft?.decisions[id] ?? emptyDecision;
+export function stateFor(draft: Pick<Draft, "items"> | null | undefined, id: string): ItemState {
+  return draft?.items[id] ?? empty;
 }
 
-export function isAttention(requirement: Requirement, decision: Decision): boolean {
-  if (decision.disposition === "supported" || decision.disposition === "spec_change") {
-    return false;
-  }
-  if (decision.disposition === "unreviewed") return requirement.flagged;
-  return true;
+export function currentRevision(revisions: string[] | undefined) {
+  return revisions?.at(-1) ?? TASK.baseRevision;
 }
 
-export function statusFor(requirement: Requirement, decision: Decision): {
-  label: string;
-  tone: "supported" | "divergence" | "unresolved" | "spec" | "idle";
-} {
-  switch (decision.disposition) {
-    case "supported":
-      return { label: "Supported", tone: "supported" };
-    case "spec_change":
-      return { label: "Spec change", tone: "spec" };
-    case "review_pending":
-      return { label: "Review pending", tone: "unresolved" };
-    case "unresolved":
-      return { label: "Unresolved", tone: "unresolved" };
-    case "correction_sent":
-      return { label: "Correction sent", tone: "unresolved" };
-    default:
-      if (requirement.evidenceClass === "confirmed_mismatch") {
-        return { label: "Divergence", tone: "divergence" };
-      }
-      if (requirement.evidenceClass === "possible_intentional") {
-        return { label: "Divergence", tone: "divergence" };
-      }
-      if (requirement.evidenceClass === "insufficient") {
-        return { label: "Needs evidence", tone: "unresolved" };
-      }
-      return { label: "Unreviewed", tone: "idle" };
+export function statusFor(item: ReviewItem, state: ItemState): { label: string; tone: Tone } {
+  switch (item.kind) {
+    case "confirm":
+      return state.confirmed
+        ? { label: "Confirmed", tone: "confirmed" }
+        : { label: "Ready to confirm", tone: "idle" };
+    case "correct":
+      if (state.confirmed) return { label: "Corrected · Confirmed", tone: "confirmed" };
+      if (state.check) return { label: "Corrected", tone: "confirmed" };
+      if (state.unresolved) return { label: "Kept open", tone: "waiting" };
+      if (state.revisionReady) return { label: "Fix ready to recheck", tone: "open" };
+      if (state.correction) return { label: "Correction sent", tone: "open" };
+      return { label: "Needs a fix", tone: "problem" };
+    case "product":
+      return state.decision
+        ? { label: "Decision recorded", tone: "decision" }
+        : { label: "Your call", tone: "problem" };
+    case "evidence":
+      if (state.person) return { label: "Waiting on a person", tone: "waiting" };
+      if (state.unresolved) return { label: "Kept open", tone: "waiting" };
+      if (state.research?.status === "running") return { label: "Agent researching", tone: "open" };
+      if (state.research?.status === "done") return { label: "Research back", tone: "open" };
+      return { label: "Not enough evidence", tone: "problem" };
   }
 }
 
-export function versionsFor(requirement: Requirement, draft: Draft | null) {
-  if (
-    requirement.revised &&
-    draft?.applied.includes(requirement.id) &&
-    requirement.evidenceClass === "confirmed_mismatch"
-  ) {
-    return {
-      codeRevision: requirement.revised.revision,
-      specVersion: requirement.revised.specVersion,
-    };
+/** Settled means you acted on it: closed, decided, or left open on purpose. */
+export function isSettled(item: ReviewItem, state: ItemState) {
+  if (item.kind === "confirm" || item.kind === "correct") {
+    return Boolean(state.confirmed || state.unresolved);
   }
-  return {
-    codeRevision: TASK.codeRevision,
-    specVersion: requirement.evidence.specVersion,
-  };
+  if (item.kind === "product") return Boolean(state.decision);
+  return Boolean(state.person || state.unresolved);
 }
 
-export function supportBlockReason(
-  requirement: Requirement,
-  draft: Draft | null,
-): string | null {
-  const decision = decisionFor(draft, requirement.id);
-  if (decision.disposition === "supported") {
-    const support = decision.support;
-    return `${requirement.id} is already recorded as supported against ${support?.codeRevision} and spec ${support?.specVersion}.`;
-  }
-  if (decision.disposition === "spec_change") {
-    return `${requirement.id} is recorded as an authorized spec change, not as support for spec ${requirement.evidence.specVersion}.`;
-  }
-  if (requirement.evidenceClass === "insufficient") {
-    return `${requirement.id} cannot be marked met. There is no announcement trace and no focus check on ${TASK.codeRevision}. Investigate and gather that evidence first.`;
-  }
-  if (requirement.evidenceClass === "possible_intentional") {
-    return `${requirement.id} cannot be recorded as support for spec ${requirement.evidence.specVersion}. The fraud-hold retry is not in that spec. Confirm an authorized spec change, or request a correction.`;
-  }
-  if (requirement.evidenceClass === "confirmed_mismatch") {
-    const revised = Boolean(requirement.revised && draft?.applied.includes(requirement.id));
-    const passed = decision.focusedCheck?.result === "pass" && revised;
-    if (!passed) {
-      return `${requirement.id} cannot be marked met. The notice on ${TASK.codeRevision} says the payment succeeded, which spec ${requirement.evidence.specVersion} forbids. Resolve the divergence and recheck the revised evidence first.`;
-    }
-  }
-  return null;
-}
-
-export function evidenceLabels(requirement: Requirement, draft: Draft | null): string[] {
-  const revised = Boolean(requirement.revised && draft?.applied.includes(requirement.id));
-  const specVersion = revised
-    ? requirement.revised!.specVersion
-    : requirement.evidence.specVersion;
-  const checks = revised ? requirement.revised!.checks : requirement.evidence.checks;
-  const behavior = revised ? requirement.revised!.behavior : requirement.evidence.behavior;
-  return [
-    `Spec ${TASK.specId} ${specVersion}`,
-    requirement.file,
-    ...checks.map((check) => `Check: ${check.name} (${check.result})`),
-    behavior,
-  ];
-}
-
-export function meaningfulDisposition(disposition: Disposition): boolean {
-  return disposition !== "unreviewed";
-}
-
-export function reviewSummary(decisions: Record<string, Decision>) {
-  const rows = requirements.map((requirement) => ({
-    requirement,
-    decision: decisions[requirement.id] ?? emptyDecision,
-  }));
+export function reviewSummary(snapshot: Pick<Draft, "items" | "noted"> | null | undefined) {
+  const rows = items.map((item) => ({ item, state: stateFor(snapshot, item.id) }));
   return {
     rows,
-    supported: rows.filter((row) => row.decision.disposition === "supported").length,
-    specChanges: rows.filter((row) => row.decision.disposition === "spec_change").length,
-    pending: rows.filter((row) =>
-      row.decision.disposition === "review_pending" ||
-      row.decision.disposition === "correction_sent",
-    ).length,
-    unresolved: rows.filter((row) => row.decision.disposition === "unresolved").length,
-    open: rows.filter((row) => isAttention(row.requirement, row.decision)).length,
+    settled: rows.filter((row) => isSettled(row.item, row.state)).length,
+    total: rows.length,
+    confirmed: rows.filter((row) => row.state.confirmed).length,
+    decisions: rows.filter((row) => row.state.decision).length,
+    waiting: rows.filter((row) => row.state.person).length,
+    unresolved: rows.filter((row) => row.state.unresolved).length,
+    noted: snapshot?.noted.length ?? 0,
+    notes: conceptNotes.length,
   };
 }
 
-export function activeFileLines(
-  file: { lines: DiffLine[]; revisedLines?: DiffLine[]; revisedWhen: string[] },
-  applied: string[],
-) {
-  if (file.revisedLines && file.revisedWhen.some((id) => applied.includes(id))) {
-    return file.revisedLines;
-  }
+export function hasAnything(draft: Draft) {
+  return (
+    draft.noted.length > 0 ||
+    Object.values(draft.items).some((state) => Object.keys(state).length > 0)
+  );
+}
+
+export function activeFileLines(file: FileDoc, revisions: string[]): DiffLine[] {
+  if (file.variant && revisions.includes(file.variant.revision)) return file.variant.lines;
   return file.lines;
 }
 
-export function requirementById(id: string): Requirement {
-  const requirement = requirementMap[id];
-  if (!requirement) throw new Error(`Unknown requirement ${id}`);
-  return requirement;
+export function ticketVersion(draft: Pick<Draft, "items"> | null | undefined) {
+  const decision = stateFor(draft, "unassign").decision;
+  if (decision?.choice === "accept") {
+    return { version: "v2", restoreLine: TICKET_LINES.restoreV2, changedAt: decision.at };
+  }
+  return { version: "v1", restoreLine: TICKET_LINES.restoreV1, changedAt: null };
+}
+
+export function ticketDoc(draft: Pick<Draft, "items"> | null | undefined) {
+  const ticket = ticketVersion(draft);
+  return [
+    `# ${TASK.ticket} · Archive projects`,
+    "",
+    `Version ${ticket.version}${ticket.changedAt ? ` · updated ${ticket.changedAt} when you accepted Harbor's task behavior` : " · from the team board"}`,
+    "Two lines. This is all that was written down. Your ask to Harbor was one sentence.",
+    "",
+    "## Written requirements",
+    "",
+    `- ${TICKET_LINES.hide}`,
+    `- ${ticket.restoreLine}`,
+  ].join("\n");
 }
