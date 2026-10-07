@@ -1,31 +1,33 @@
-# SWEflow
+# SWEflow · v2 guided review
 
-SWEflow is the place a senior engineer returns after an AI agent finishes a delegated coding task. It connects each requirement to the spec, the diff, the revision, the checks, and the observed behavior, then keeps a review record of what is supported, what diverges, and what is still unresolved.
+SWEflow is where an engineer returns after an AI agent finishes a delegated task. Version 2 follows the revised user flow from user testing: the agent sorts its work into a guided list, you judge one item at a time, and you still make the final call.
 
-The sample session is **checkout retry copy** on `northwind-checkout`. Harbor finished the branch `agent/checkout-retry-copy` at `a4c91e2` against spec `checkout-retry` 3.2. Nothing here talks to Git or a spec host. Findings are saved in this browser.
+The sample task is an informal one-sentence ask on `tasklane`: *"Can we let people archive a project instead of deleting it? Deleting is scary."* The agent, Harbor, finished `agent/archive-projects` at `a3f9c10`. Nothing here talks to Git. Results are saved in this browser under `sweflow.v2.*` keys, separate from v1.
 
 ## Run
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Open [http://127.0.0.1:43127](http://127.0.0.1:43127).
+Open [http://127.0.0.1:48231](http://127.0.0.1:48231).
 
-## Learn and retest
+## What you review
 
-**Walk through** and **Reset demo** sit in the bar under the title, on the closed screen and inside an open review.
+The opening context shows what you asked, what Harbor finished, and what it is unsure about. Two written lines from ticket PLT-212 appear only on the items they apply to.
 
-On a fresh browser with no saved review, the walkthrough starts on its own. Skip or finish it, and it stays off until you choose Walk through or Reset demo. Reset asks once, then clears the saved review so the sample task is back at the start.
+**Looks right, confirm**
 
-## Review the sample
+- *Archived projects leave the sidebar* → **Confirmed**
+- *Restore puts the project back* → **Confirmed**
 
-1. Open the review. The task shows spec 3.2, the revisions, and Maya Chen’s prior review on an older revision.
-2. Select a requirement to see its evidence beside the diff.
-3. Record support when the evidence holds (R1, R5). That record is tied to the current code and spec versions and does not approve anything else.
-4. Resolve a divergence when the evidence conflicts or is thin:
-   - R2 is a confirmed mismatch. Request a correction, inspect Harbor’s revised evidence, run the focused check, then record support.
-   - R3 may be an intentional spec change. Confirm an authorized version, or request a correction if it is not authorized.
-   - R4 does not have enough evidence. Run the focused check or request a behavior review, and keep it unresolved if the trace is still missing.
-5. Save the review, close it, and resume. The saved findings come back. Passing checks never mark a requirement met on their own.
+**Needs your judgment**
+
+- *Archived projects still show up in search*: send a correction, inspect Harbor's revision, run one focused check → **Corrected**, then **Confirmed**.
+- *Archiving unassigns open tasks*: a product choice Harbor made on its own. Before and after are on screen. Accept (PLT-212 moves to v2) or keep the old behavior (Harbor reverts it) → **Decision recorded**.
+- *Every caller of listProjects() now skips archived projects*: not enough evidence. Ask Harbor for a short research pass, ask a person the product question → **Waiting on a person**, or keep it open.
+
+**Concept notes**, beside the list and not scored: a new concept (archived projects) and a new table (`project_archive_events`) → **Noted**.
+
+Save keeps confirms, decisions, people you are waiting on, and notes. Close, then Resume brings them back. **Walk through** replays the tour. **Reset demo** clears v2 state only.

@@ -306,8 +306,11 @@ function PileList({ pile }: { pile: Pile }) {
 
 function ItemPane({ item }: { item: ReviewItem }) {
   const review = useReview();
-  const status = statusFor(item, stateFor(review.draft, item.id));
+  const state = stateFor(review.draft, item.id);
+  const status = statusFor(item, state);
   const related = item.related ? itemMap[item.related.id] : undefined;
+  const fixed = item.correct && state.revisionReady ? item.correct : null;
+  const rechecked = Boolean(item.correct && state.check);
 
   return (
     <div>
@@ -354,6 +357,11 @@ function ItemPane({ item }: { item: ReviewItem }) {
 
         <Section title="What changed">
           <p>{item.changed}</p>
+          {fixed ? (
+            <p className="mt-1 text-[#89d185]">
+              Now on <span className="font-mono">{fixed.revision}</span>: {fixed.revisionSummary}
+            </p>
+          ) : null}
           <button
             type="button"
             className="mt-1 inline-flex items-center gap-1 font-mono text-[12px] text-[#3794ff] hover:underline"
@@ -365,10 +373,21 @@ function ItemPane({ item }: { item: ReviewItem }) {
         </Section>
 
         <Section title="The check">
-          <p className={checkTone(item.check.result)}>
-            {checkLabel(item.check.result)} · {item.check.name}
-          </p>
-          <p className="text-[#9a9a9a]">{item.check.detail}</p>
+          {rechecked && item.correct ? (
+            <>
+              <p className={checkTone("pass")}>
+                Pass · {item.correct.focusedCheck.name} · {item.correct.revision}
+              </p>
+              <p className="text-[#9a9a9a]">{item.correct.fixedBehavior}</p>
+            </>
+          ) : (
+            <>
+              <p className={checkTone(item.check.result)}>
+                {checkLabel(item.check.result)} · {item.check.name}
+              </p>
+              <p className="text-[#9a9a9a]">{item.check.detail}</p>
+            </>
+          )}
         </Section>
 
         {related && item.related ? (
