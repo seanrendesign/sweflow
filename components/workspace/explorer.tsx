@@ -17,7 +17,7 @@ export function Explorer() {
   const visible = files.filter(
     (file) => !file.revealedBy || stateFor(draft, file.revealedBy).research?.status === "done",
   );
-  const groups = ["src", "db", "tickets"].map((name) => ({
+  const groups = ["checkout", "spec"].map((name) => ({
     name,
     items: visible.filter((file) => file.path.startsWith(`${name}/`)),
   }));

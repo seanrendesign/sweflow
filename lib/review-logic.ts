@@ -1,4 +1,4 @@
-import { conceptNotes, items, TASK, TICKET_LINES } from "@/lib/sample-data";
+import { conceptNotes, items, SPEC, TASK } from "@/lib/sample-data";
 import type { DiffLine, Draft, FileDoc, ItemState, ReviewItem, Tone } from "@/lib/types";
 
 const empty: ItemState = {};
@@ -73,25 +73,42 @@ export function activeFileLines(file: FileDoc, revisions: string[]): DiffLine[] 
   return file.lines;
 }
 
-export function ticketVersion(draft: Pick<Draft, "items"> | null | undefined) {
-  const decision = stateFor(draft, "unassign").decision;
+export function specVersion(draft: Pick<Draft, "items"> | null | undefined) {
+  const decision = stateFor(draft, "R3").decision;
   if (decision?.choice === "accept") {
-    return { version: "v2", restoreLine: TICKET_LINES.restoreV2, changedAt: decision.at };
+    return { version: SPEC.proposed, r3Line: SPEC.R3proposed, changedAt: decision.at };
   }
-  return { version: "v1", restoreLine: TICKET_LINES.restoreV1, changedAt: null };
+  return { version: SPEC.current, r3Line: SPEC.R3, changedAt: null };
 }
 
-export function ticketDoc(draft: Pick<Draft, "items"> | null | undefined) {
-  const ticket = ticketVersion(draft);
+export function specDoc(draft: Pick<Draft, "items"> | null | undefined) {
+  const spec = specVersion(draft);
   return [
-    `# ${TASK.ticket} · Archive projects`,
+    "# Checkout retry",
     "",
-    `Version ${ticket.version}${ticket.changedAt ? ` · updated ${ticket.changedAt} when you accepted Harbor's task behavior` : " · from the team board"}`,
-    "Two lines. This is all that was written down. Your ask to Harbor was one sentence.",
+    spec.changedAt
+      ? `Version ${spec.version} · updated ${spec.changedAt} when you accepted Harbor's fraud-hold retry. Supersedes ${SPEC.current}.`
+      : `Version ${spec.version} · Priya Shah · Oct 3, 2026`,
+    `Applies to the card form in ${TASK.repo}. Your ask to Harbor was one sentence; these lines show on the items they apply to.`,
     "",
-    "## Written requirements",
+    "## R1 · Form stays editable",
     "",
-    `- ${TICKET_LINES.hide}`,
-    `- ${ticket.restoreLine}`,
+    SPEC.R1,
+    "",
+    "## R2 · Notice does not claim success",
+    "",
+    SPEC.R2,
+    "",
+    `## R3 · ${spec.changedAt ? "Retry for soft declines and fraud holds" : "Retry only for soft declines"}`,
+    "",
+    spec.r3Line,
+    "",
+    "## R4 · Announce, then move focus",
+    "",
+    SPEC.R4,
+    "",
+    "## R5 · Clear the notice after success",
+    "",
+    SPEC.R5,
   ].join("\n");
 }

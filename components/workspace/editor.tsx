@@ -5,7 +5,7 @@ import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { fileMap, TASK } from "@/lib/sample-data";
 import { highlightCode } from "@/lib/highlight";
-import { activeFileLines, currentRevision, ticketDoc } from "@/lib/review-logic";
+import { activeFileLines, currentRevision, specDoc } from "@/lib/review-logic";
 import { useReview } from "@/lib/review-store";
 import type { DiffLine } from "@/lib/types";
 
@@ -100,7 +100,7 @@ export function Editor() {
             saved={Boolean(saved)}
           />
         ) : file?.kind === "doc" ? (
-          <DocView source={ticketDoc(draft)} />
+          <DocView source={specDoc(draft)} />
         ) : (
           <DiffView lines={lines} showDiff={showDiff} selectedId={selectedId} />
         )}
@@ -145,7 +145,7 @@ function ClosedEditor({
         {saved ? "SAVED REVIEW" : "AGENT WORK IS READY"}
       </p>
       <h2 className="mt-2 text-xl font-medium text-[#e8e8e8]">
-        {saved ? "Your archive-projects review is saved" : "Harbor finished: archive projects"}
+        {saved ? "Your checkout retry copy review is saved" : "Harbor finished checkout retry copy"}
       </h2>
       <p className="mt-2 text-[13px] leading-relaxed text-[#bdbdbd]">
         {saved

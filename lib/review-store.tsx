@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { conceptNotes, initialAgentThread, itemMap, TASK } from "@/lib/sample-data";
+import { conceptNotes, initialAgentThread, itemMap, SPEC, TASK } from "@/lib/sample-data";
 import { currentRevision, hasAnything, stateFor } from "@/lib/review-logic";
 import { clearDemoStorage, REVIEW_STORAGE_KEY, type TourCue } from "@/lib/tour-cues";
 import type {
@@ -23,7 +23,7 @@ import type {
   Snapshot,
 } from "@/lib/types";
 
-const DEFAULT_FILE = "src/projects/archive.ts";
+const DEFAULT_FILE = "checkout/RetryNotice.tsx";
 
 interface Land {
   view: SidebarView;
@@ -498,7 +498,7 @@ export function ReviewProvider({ children }: { children: React.ReactNode }) {
       const at = stamp();
       if (choice === "accept") {
         patchItem(id, (prev) => ({ ...prev, decision: { choice, at, recorded: detail.after } }));
-        toast.success(`Decision recorded. ${TASK.ticket} is now v2 with Harbor's task behavior.`);
+        toast.success(`Decision recorded. Spec ${TASK.specId} is now ${SPEC.proposed} with Harbor's behavior.`);
         return;
       }
       const sentAt = clock();
@@ -536,7 +536,7 @@ export function ReviewProvider({ children }: { children: React.ReactNode }) {
           };
         });
         setActiveFile(item.file);
-        toast(`Harbor pushed ${detail.revision}. Tasks keep their assignees.`);
+        toast(`Harbor pushed ${detail.revision}. The old behavior is back.`);
       });
     },
     [later, patchItem],
@@ -581,7 +581,7 @@ export function ReviewProvider({ children }: { children: React.ReactNode }) {
             ],
           };
         });
-        toast("Harbor's research is back. One caller raises a product question.");
+        toast(detail.research.toast);
       });
     },
     [later, patchItem],

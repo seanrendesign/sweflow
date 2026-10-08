@@ -53,8 +53,10 @@ export interface ProductDetail {
 
 export interface EvidenceDetail {
   codeQuestion: string;
+  runningLabel: string;
   research: {
     reply: string;
+    toast: string;
     summary: string;
     findings: { where: string; file?: string; note: string; concern: boolean }[];
   };

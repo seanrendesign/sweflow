@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { conceptNotes, itemMap, items, TASK } from "@/lib/sample-data";
-import { currentRevision, reviewSummary, stateFor, statusFor, ticketVersion } from "@/lib/review-logic";
+import { conceptNotes, itemMap, items, SPEC, TASK } from "@/lib/sample-data";
+import { currentRevision, reviewSummary, specVersion, stateFor, statusFor } from "@/lib/review-logic";
 import { useReview } from "@/lib/review-store";
 import type { BehaviorVersion, ItemKind, Pile, ReviewItem } from "@/lib/types";
 import {
@@ -42,6 +42,7 @@ const ACTION: Record<ItemKind, string> = {
 export function GuidedPanel() {
   const review = useReview();
   const revision = currentRevision(review.draft?.revisions);
+  const spec = specVersion(review.draft);
 
   return (
     <aside
@@ -53,7 +54,7 @@ export function GuidedPanel() {
           <p className="text-[11px] font-medium tracking-wide text-[#3794ff]">GUIDED REVIEW</p>
           <p className="truncate text-[13px] text-[#e8e8e8]">{TASK.title}</p>
           <p className="font-mono text-[11px] text-[#8a8a8a]">
-            {TASK.branch} · {revision}
+            {TASK.specId} {spec.version} · {revision}
             {review.draft?.dirty ? " · unsaved" : ""}
             {review.draft?.savedAt && !review.draft.dirty ? ` · saved ${review.draft.savedAt}` : ""}
           </p>
@@ -125,7 +126,7 @@ function ClosedPane() {
         <p className="mt-2 text-[13px] leading-relaxed text-[#c8c8c8]">
           {saved
             ? `Saved ${saved.savedAt}. ${summary?.settled ?? 0} of ${summary?.total ?? 0} items settled, ${summary?.waiting ?? 0} waiting on a person, ${summary?.noted ?? 0} of ${summary?.notes ?? 0} concept notes marked. Resume to pick up where you left off.`
-            : "You asked Harbor to let people archive projects. You were not watching the edits. Open the work to see what it did and what it needs from you."}
+            : "You asked Harbor to make the declined-card retry banner friendlier. You were not watching the edits. Open the work to see what it did and what it needs from you."}
         </p>
       </div>
       {saved && summary ? (
@@ -134,7 +135,9 @@ function ClosedPane() {
             const status = statusFor(row.item, row.state);
             return (
               <li key={row.item.id} className="flex items-start justify-between gap-2 text-[13px]">
-                <span className="text-[#d4d4d4]">{row.item.title}</span>
+                <span className="text-[#d4d4d4]">
+                  <span className="font-mono text-[11px] text-[#9cdcfe]">{row.item.id}</span> {row.item.title}
+                </span>
                 <StatusChip label={status.label} tone={status.tone} />
               </li>
             );
@@ -160,6 +163,7 @@ function ClosedPane() {
 function Overview() {
   const review = useReview();
   const summary = reviewSummary(review.draft);
+  const spec = specVersion(review.draft);
   const notesRef = useRef<HTMLElement>(null);
 
   const { scrollTarget, clearScrollTarget } = review;
@@ -176,7 +180,7 @@ function Overview() {
           <p className="mb-1 text-[11px] font-medium tracking-wide text-[#8a8a8a]">WHAT YOU ASKED</p>
           <Quote source={`You to Harbor · ${TASK.askedAt}`}>“{TASK.ask}”</Quote>
           <p className="mt-1.5 text-[12px] leading-snug text-[#9a9a9a]">
-            No numbered spec. Ticket {TASK.ticket} has two written lines; they show on the items they apply to.
+            Your ask was one sentence. Lines from spec {TASK.specId} {spec.version} show only on the items they apply to.
           </p>
         </div>
         <div>
@@ -290,7 +294,9 @@ function PileList({ pile }: { pile: Pile }) {
                 )}
               >
                 <span className="flex items-start justify-between gap-2">
-                  <span className="text-[13px] leading-snug text-[#e8e8e8]">{item.title}</span>
+                  <span className="text-[13px] leading-snug text-[#e8e8e8]">
+                    <span className="font-mono text-[11px] text-[#9cdcfe]">{item.id}</span> {item.title}
+                  </span>
                   <StatusChip label={status.label} tone={status.tone} />
                 </span>
                 <span className="text-[12px] leading-snug text-[#9a9a9a]">{item.category}</span>
@@ -328,7 +334,9 @@ function ItemPane({ item }: { item: ReviewItem }) {
       <div data-tour="item-detail">
         <div className="px-3 py-3">
           <p className="text-[11px] text-[#c586c0]">{item.category}</p>
-          <h2 className="mt-0.5 text-[15px] font-medium text-white">{item.title}</h2>
+          <h2 className="mt-0.5 text-[15px] font-medium text-white">
+            <span className="font-mono text-[13px] text-[#9cdcfe]">{item.id}</span> {item.title}
+          </h2>
           <dl className="mt-2 space-y-2 text-[13px] leading-relaxed">
             <div>
               <dt className="text-[11px] font-medium tracking-wide text-[#8a8a8a]">
@@ -344,14 +352,14 @@ function ItemPane({ item }: { item: ReviewItem }) {
         </div>
 
         {item.written && item.kind !== "product" ? (
-          <Section title={`Written requirement · ${item.written.source}`}>
+          <Section title={`Spec · ${item.written.source}`}>
             <Quote>{item.written.text}</Quote>
             {item.written.scope ? <p className="mt-1.5 text-[12px] text-[#9a9a9a]">{item.written.scope}</p> : null}
           </Section>
         ) : null}
-        {item.kind === "evidence" ? (
-          <Section title="Written requirement">
-            <p className="text-[#9a9a9a]">None. Nothing written covers the other callers.</p>
+        {!item.written && item.kind !== "product" ? (
+          <Section title="Spec">
+            <p className="text-[#9a9a9a]">No spec line covers this item.</p>
           </Section>
         ) : null}
 
@@ -397,7 +405,7 @@ function ItemPane({ item }: { item: ReviewItem }) {
               className="text-left text-[#3794ff] hover:underline"
               onClick={() => review.selectItem(related.id)}
             >
-              {related.title}
+              {related.id} · {related.title}
             </button>
             <p className="text-[#9a9a9a]">{item.related.note}</p>
           </Section>
@@ -597,7 +605,7 @@ function ProductActions({ item }: { item: ReviewItem }) {
   const detail = item.product!;
   const state = stateFor(review.draft, item.id);
   const decision = state.decision;
-  const ticket = ticketVersion(review.draft);
+  const spec = specVersion(review.draft);
 
   return (
     <div className="border-t border-[#2b2b2b] p-3">
@@ -624,18 +632,18 @@ function ProductActions({ item }: { item: ReviewItem }) {
           <SuccessBanner label="Decision recorded">
             {decision.choice === "accept" ? (
               <>
-                You accepted Harbor&apos;s behavior · {decision.at}. {TASK.ticket} now reads {ticket.version}: “
-                {ticket.restoreLine}”
+                You accepted Harbor&apos;s behavior · {decision.at}. Spec {TASK.specId} is now {spec.version}: “
+                {spec.r3Line}”
               </>
             ) : decision.restoredOn ? (
               <>
                 You kept the old behavior · {decision.at}. Harbor reverted it on{" "}
-                <span className="font-mono">{decision.restoredOn}</span>. {TASK.ticket} stays {ticket.version}.
+                <span className="font-mono">{decision.restoredOn}</span>. Spec {TASK.specId} stays {spec.version}.
               </>
             ) : (
               <>
-                You kept the old behavior · {decision.at}. {TASK.ticket} stays {ticket.version}. Harbor is
-                reverting the unassign step…
+                You kept the old behavior · {decision.at}. Spec {TASK.specId} stays {spec.version}. Harbor is
+                restoring the terminal error…
               </>
             )}
           </SuccessBanner>
@@ -653,14 +661,14 @@ function ProductActions({ item }: { item: ReviewItem }) {
               Keep the old behavior · send a correction
             </Button>
             <p className="text-[11px] leading-snug text-[#8a8a8a]">
-              Accept updates {TASK.ticket} to v2. Keeping the old behavior sends Harbor a correction to revert it.
+              Accept moves spec {TASK.specId} to {SPEC.proposed}. Keeping the old behavior sends Harbor a correction to restore it.
             </p>
           </>
         )}
         {decision ? (
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="xs" variant="secondary" onClick={() => review.openFile("tickets/PLT-212.md")}>
-              Open {TASK.ticket}
+            <Button type="button" size="xs" variant="secondary" onClick={() => review.openFile(TASK.specFile)}>
+              Open spec {spec.version}
             </Button>
             {decision.restoredOn ? (
               <Button type="button" size="xs" variant="secondary" onClick={() => review.openFile(item.file)}>
@@ -697,7 +705,7 @@ function EvidenceActions({ item }: { item: ReviewItem }) {
           </Button>
         ) : running ? (
           <p className="mt-2 text-[12px] text-[#e2c044]" aria-live="polite">
-            Harbor is reading every caller of listProjects()…
+            {detail.runningLabel}
           </p>
         ) : (
           <div className="mt-2 space-y-1.5">
@@ -823,7 +831,7 @@ function KeepOpen({ item }: { item: ReviewItem }) {
   const state = stateFor(review.draft, item.id);
   const detail = item.evidence!;
   const [open, setOpen] = useState(false);
-  const [question, setQuestion] = useState(detail.codeQuestion);
+  const [question, setQuestion] = useState(detail.personQuestionBefore);
   const [evidenceNeeded, setEvidenceNeeded] = useState(detail.evidenceNeeded);
   const [owner, setOwner] = useState("");
 

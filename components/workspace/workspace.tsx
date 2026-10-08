@@ -3,7 +3,7 @@
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { TASK } from "@/lib/sample-data";
-import { currentRevision, reviewSummary } from "@/lib/review-logic";
+import { currentRevision, reviewSummary, specVersion } from "@/lib/review-logic";
 import { useReview } from "@/lib/review-store";
 import { ActivityBar } from "@/components/workspace/activity-bar";
 import { BottomPanel } from "@/components/workspace/bottom-panel";
@@ -105,6 +105,9 @@ export function Workspace() {
       <footer className="flex h-6 shrink-0 items-center gap-3 bg-[#007acc] px-2 text-[11px] text-white">
         <span className="truncate">{TASK.branch}</span>
         <span className="font-mono">{revision}</span>
+        <span>
+          spec {specVersion(phase === "review" ? draft : null).version}
+        </span>
         {phase === "review" ? (
           <span>
             {summary.settled}/{summary.total} settled
