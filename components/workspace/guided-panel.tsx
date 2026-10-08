@@ -381,7 +381,14 @@ function ItemPane({ item }: { item: ReviewItem }) {
         </Section>
 
         <Section title="The check">
-          {rechecked && item.correct ? (
+          {item.product && state.decision?.restoredOn ? (
+            <>
+              <p className={checkTone("pass")}>
+                Pass · {item.check.name} · {state.decision.restoredOn}
+              </p>
+              <p className="text-[#9a9a9a]">Harbor added this test when it restored the old behavior.</p>
+            </>
+          ) : rechecked && item.correct ? (
             <>
               <p className={checkTone("pass")}>
                 Pass · {item.correct.focusedCheck.name} · {item.correct.revision}
