@@ -1,0 +1,84 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main, v2-guided-review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout v1 (main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: v1
+
+      - name: Checkout v2
+        uses: actions/checkout@v4
+        with:
+          ref: v2-guided-review
+          path: v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            v1/package-lock.json
+            v2/package-lock.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build v1
+        working-directory: v1
+        env:
+          PAGES_BASE_PATH: /sweflow
+        run: |
+          rm -rf app/download
+          npm ci
+          npm run build
+
+      - name: Build v2
+        working-directory: v2
+        env:
+          PAGES_BASE_PATH: /sweflow/v2
+        run: |
+          rm -rf app/download
+          npm ci
+          npm run build
+
+      - name: Combine site
+        run: |
+          mkdir -p site/v2
+          cp -R v1/out/. site/
+          cp -R v2/out/. site/v2/
+          touch site/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
